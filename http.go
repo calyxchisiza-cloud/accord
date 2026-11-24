@@ -2,6 +2,7 @@ package accord
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"io"
 	"net"
@@ -9,10 +10,17 @@ import (
 	"time"
 )
 
+//go:embed index.html
+var indexHTML []byte
+
 // Handler serves the key and lock API for one node.
 // A follower answers status, and refuses a read or a write with the leader id.
 func Handler(n *Node) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(indexHTML)
+	})
 	mux.HandleFunc("GET /v1/status", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, n.Status())
 	})

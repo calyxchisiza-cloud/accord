@@ -142,3 +142,12 @@ func TestLiveClusterAgrees(t *testing.T) {
 	}
 	t.Fatal("value did not reach every node")
 }
+
+func TestPage(t *testing.T) {
+	c := testCluster(t, "a")
+	rec := httptest.NewRecorder()
+	Handler(c.nodes["a"]).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Hello") {
+		t.Fatalf("%d", rec.Code)
+	}
+}

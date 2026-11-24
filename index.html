@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Accord</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --wash:#e4eaf8; --shell:#f5f7fb; --card:#fff; --ink:#1c2433; --muted:#7d8798; --line:#e7ebf3; --accent:#1d4ed8; --soft:#e4ecff; --down:#d4534b; }
+    * { box-sizing:border-box; } body { margin:0; min-height:100vh; font-family:Inter,"Segoe UI",sans-serif; color:var(--ink); background:radial-gradient(900px 480px at 10% -10%, #fff, var(--wash)); }
+    .shell { width:min(1120px, calc(100% - 40px)); margin:28px auto; min-height:760px; display:grid; grid-template-columns:84px 1fr; background:var(--shell); border-radius:28px; box-shadow:0 24px 60px rgba(20,40,80,.08); }
+    .rail { display:flex; flex-direction:column; align-items:center; gap:8px; padding:22px 0; }
+    .mark { width:44px; height:44px; border-radius:14px; background:var(--soft); color:var(--accent); display:grid; place-items:center; }
+    .content { padding:28px 28px 28px 6px; }
+    .top { display:flex; justify-content:space-between; gap:18px; align-items:center; }
+    h1 { margin:0; font-size:28px; letter-spacing:-.03em; } .sub { margin:4px 0 0; color:var(--muted); font-size:14px; }
+    .iconbtn { width:42px; height:42px; border:0; border-radius:50%; background:#fff; cursor:pointer; }
+    .stats, .grid { display:grid; gap:14px; margin-top:16px; } .stats { grid-template-columns:repeat(3,1fr); } .grid { grid-template-columns:1fr 1fr; }
+    .stat, .panel { background:#fff; border-radius:18px; padding:16px 18px; }
+    .stat .k { color:var(--muted); font-size:13px; } .stat b { display:block; margin-top:10px; font-size:30px; letter-spacing:-.04em; }
+    h2 { margin:0 0 8px; font-size:16px; } label { display:block; margin:10px 0 4px; font-size:12px; color:var(--muted); }
+    input, button { font:inherit; } input { width:100%; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+    .row { display:flex; gap:10px; align-items:end; } .row > * { flex:1; }
+    button.primary, button.quiet { border:0; border-radius:12px; padding:10px 14px; cursor:pointer; }
+    button.primary { background:var(--accent); color:#fff; } button.quiet { background:var(--soft); color:var(--ink); }
+    pre { white-space:pre-wrap; background:#f4f6fb; border-radius:12px; padding:12px; } .error { color:var(--down); }
+    @media (max-width:900px) { .shell { grid-template-columns:1fr; } .stats, .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail"><div class="mark" title="Accord"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="7" r="2.4"/><circle cx="18" cy="17" r="2.4"/><path d="M8 12h8M8 11l8-3M8 13l8 3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div></aside>
+    <main class="content">
+      <div class="top">
+        <div><h1 id="hello">Hello</h1><p class="sub" id="sub">This page talks to the node that served it.</p></div>
+        <button class="iconbtn" id="refresh" title="Refresh">↻</button>
+      </div>
+      <div class="stats">
+        <article class="stat"><div class="k">Role</div><b id="role">…</b></article>
+        <article class="stat"><div class="k">Term</div><b id="term">…</b></article>
+        <article class="stat"><div class="k">Commit</div><b id="commit">…</b></article>
+      </div>
+      <div class="grid">
+        <section class="panel">
+          <h2>Key</h2>
+          <div class="row"><div><label>Key</label><input id="key" value="color"></div><div><label>Value</label><input id="value" value="blue"></div></div>
+          <p><button class="primary" id="save">Save</button> <button class="quiet" id="read">Read</button> <button class="quiet" id="del">Delete</button></p>
+        </section>
+        <section class="panel">
+          <h2>Lock</h2>
+          <div class="row"><div><label>Name</label><input id="lock" value="payments"></div><div><label>Owner</label><input id="owner" value="worker-1"></div></div>
+          <p><button class="primary" id="acquire">Acquire</button> <button class="quiet" id="release">Release</button></p>
+        </section>
+      </div>
+      <section class="panel" style="margin-top:14px"><h2>Result</h2><pre id="out">Waiting for this node.</pre><p class="error" id="err"></p></section>
+    </main>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    async function call(path, options = {}) {
+      const response = await fetch(path, options);
+      const text = await response.text();
+      $("out").textContent = text || response.statusText;
+      if (!response.ok) $("err").textContent = text; else $("err").textContent = "";
+      return response.ok;
+    }
+    async function status() {
+      const row = await (await fetch("/v1/status")).json();
+      $("hello").textContent = "Hello, " + row.id + "!";
+      $("sub").textContent = row.role === "leader" ? "This node is the leader." : "Leader is " + (row.leader || "undecided") + ". Writes succeed on the leader.";
+      $("role").textContent = row.role;
+      $("term").textContent = row.term;
+      $("commit").textContent = row.commit;
+    }
+    $("refresh").onclick = () => status();
+    $("save").onclick = () => call("/v1/kv/" + $("key").value, { method:"PUT", body:$("value").value });
+    $("read").onclick = () => call("/v1/kv/" + $("key").value);
+    $("del").onclick = () => call("/v1/kv/" + $("key").value, { method:"DELETE" });
+    $("acquire").onclick = () => call("/v1/locks/" + $("lock").value, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ owner:$("owner").value }) });
+    $("release").onclick = () => call("/v1/locks/" + $("lock").value + "?owner=" + encodeURIComponent($("owner").value), { method:"DELETE" });
+    status();
+    setInterval(status, 3000);
+  </script>
+</body>
+</html>
